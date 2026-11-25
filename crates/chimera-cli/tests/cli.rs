@@ -522,3 +522,52 @@ fn render_notes_tele_records_the_live_telemetry_without_changing_the_sound() {
     let a_lip = artic["frames"][96][lip].as_f64().unwrap(); // 0.96 s = 60 tele hops
     assert!((at(60, 11 + lip) as f64 - a_lip).abs() < 1e-3, "lipAp {} vs {a_lip}", at(60, 11 + lip));
 }
+
+#[test]
+fn the_roost_agrees_and_leaves_together() {
+    // a small roost, so the test is quick: the sound and the vote it was made from
+    let stem = tmp("roost");
+    let stdout = chimera(&["render", "roost", &stem, "2", "14"]);
+    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(format!("{stem}.json")).unwrap()).unwrap();
+    let num = |x: &serde_json::Value| x.as_f64().unwrap();
+    let (decided, lead_in, span) = (num(&v["decided"]), num(&v["leadIn"]), num(&v["takeoffSpan"]));
+    assert!(span < 5.0, "every bird in the air within five seconds: {span}");
+
+    // the calling the roost heard was under the threshold until the decision, and at it then
+    let heard: Vec<(f64, f64)> = v["heard"].as_array().unwrap().iter().map(|p| (num(&p[0]), num(&p[1]))).collect();
+    let threshold = num(&v["threshold"]);
+    assert!(heard.iter().filter(|(t, _)| *t < decided - 0.5).all(|(_, h)| *h < threshold), "over the threshold before deciding\n{stdout}");
+    assert!(heard.iter().any(|(t, h)| *t >= decided - 0.5 && *h >= threshold), "never at the threshold\n{stdout}");
+
+    // the calling builds: more calls in the 10 s before the decision than in the first 10 s
+    let calls: Vec<f64> = v["calls"].as_array().unwrap().iter().map(|c| num(&c[0])).collect();
+    let (early, late) = (calls.iter().filter(|t| **t < 10.0).count(), calls.iter().filter(|t| **t >= decided - 10.0 && **t < decided).count());
+    assert!(decided > 20.0 && late > 3 * early.max(1), "{early} calls in the first 10 s, {late} in the last 10 before deciding at {decided} s\n{stdout}");
+
+    // every bird leaves, within the span, and none before the decision
+    let birds = v["birds"].as_array().unwrap();
+    assert_eq!(birds.len(), 14);
+    for b in birds {
+        let t = num(&b["takeoff"]);
+        assert!(t >= decided && t <= decided + span, "a bird took off at {t}, the roost decided at {decided}");
+    }
+
+    // 16-bit stereo at 48 kHz, as long as the JSON says, loud at the decision and quiet at the end
+    let b = std::fs::read(format!("{stem}.wav")).unwrap();
+    let u16_at = |i: usize| u16::from_le_bytes([b[i], b[i + 1]]);
+    let u32_at = |i: usize| u32::from_le_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]);
+    assert_eq!((u16_at(20), u16_at(22), u32_at(24), u16_at(34)), (1, 2, 48000, 16), "16-bit PCM stereo 48 kHz");
+    let left: Vec<i16> = b[44..].chunks_exact(4).map(|c| i16::from_le_bytes([c[0], c[1]])).collect();
+    assert!((left.len() as f64 / 48000.0 - num(&v["seconds"])).abs() < 0.01);
+    let rms = |from: f64, to: f64| {
+        let x = &left[(from * 48000.0) as usize..((to * 48000.0) as usize).min(left.len())];
+        (x.iter().map(|&s| (s as f64).powi(2)).sum::<f64>() / x.len() as f64).sqrt()
+    };
+    let at = lead_in + decided;
+    assert!(rms(at - 1.0, at + 3.0) > 8.0 * rms(at + 17.0, at + 20.0), "the flock does not fade into the distance");
+
+    // the same seed is the same morning
+    let again = tmp("roost-again");
+    chimera(&["render", "roost", &again, "2", "14", "--jobs", "3"]);
+    assert!(std::fs::read(format!("{again}.wav")).unwrap() == b, "a different sound from the same seed (and another thread count)");
+}

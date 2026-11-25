@@ -8,6 +8,7 @@ mod compare;
 mod diagnose;
 mod js;
 mod render;
+mod roost;
 mod wav;
 
 use chimera::anatomy::human::{BODY_CHILD, BODY_FEMALE, BODY_MALE, BodyMix, HumanBody};
@@ -26,6 +27,9 @@ usage: chimera <command> [args] [--float]
                  --artic also writes the articulators at 100 Hz)
   render beatbox [outdir] [preset name | pattern] [male|female|child] [bpm] [bars]
   render creature [creatureId] [outdir]
+  render roost   [out] [seed] [birds] [--dry] [--jobs n]
+                 (a jackdaw roost voting to leave, every bird its own airway: <out>.wav in stereo
+                 and <out>.json, the vote; --dry runs the vote without the sound)
   render vowels  [male|female|child] [out]
   syllables      \"lyrics\" [en|tr]  (what the language front ends read: one JSON syllable per sung
                  note; tr reads Latin script as Turkish)
@@ -112,6 +116,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 "notes" => render::notes(&ctx, rest),
                 "beatbox" => render::beatbox(&ctx, rest),
                 "creature" => render::creature(&ctx, rest),
+                "roost" => roost::run(&ctx, rest),
                 "vowels" => render::vowels(&ctx, rest),
                 _ => Err(format!("unknown render kind {kind:?}\n\n{USAGE}")),
             }

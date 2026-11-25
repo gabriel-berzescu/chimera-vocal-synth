@@ -1,0 +1,433 @@
+<title>Roost Vote</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one column. The wood seen from above is the page; the vote's curve sits under it on
+     the same clock; the notes follow as plain reading. */
+  :root {
+    --sky: #e8ecf1;        /* a winter morning */
+    --sky-top: #efe6e4;    /* where the light comes from */
+    --ink: #1a232e;        /* jackdaw black, which is blue */
+    --ink-2: #4a5766;      /* the grey nape */
+    --line: #c3ccd6;
+    --bird: #1a232e;
+    --dawn: #a3304b;       /* the decision */
+    --panel: #dfe5ec;
+    --display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --sky: #0e141b; --sky-top: #1a1a22; --ink: #dde5ee; --ink-2: #92a0b0; --line: #26313e;
+      --bird: #dde5ee; --dawn: #f0a297; --panel: #151d27; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --sky: #0e141b; --sky-top: #1a1a22; --ink: #dde5ee; --ink-2: #92a0b0; --line: #26313e;
+    --bird: #dde5ee; --dawn: #f0a297; --panel: #151d27; color-scheme: dark;
+  }
+
+  body {
+    background: var(--sky); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6;
+    padding-block: 28px 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .page { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(44px, 9vw, 76px); line-height: 0.95; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  .lede { font-size: 18px; max-width: 62ch; color: var(--ink); }
+  .prose { display: flex; flex-direction: column; gap: 14px; max-width: 66ch; }
+  .prose p { color: var(--ink); }
+  a { color: inherit; text-decoration-color: var(--dawn); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, canvas:focus-visible { outline: 2px solid var(--dawn); outline-offset: 3px; }
+  .label { font-family: var(--data); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+
+  /* the piece */
+  .piece { display: flex; flex-direction: column; gap: 10px; }
+  .stage { position: relative; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; background: var(--sky); }
+  .stage canvas { display: block; width: 100%; }
+  #wood { aspect-ratio: 104 / 64; }
+  #vote { height: 150px; cursor: pointer; border-top: 1px solid var(--line); touch-action: none; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+  .play {
+    font-family: var(--body); font-size: 15px; font-weight: 600; color: var(--sky); background: var(--ink);
+    border: 0; border-radius: 3px; padding: 10px 18px; min-width: 104px; cursor: pointer;
+  }
+  .play:hover { background: var(--dawn); }
+  .clock, .state { font-family: var(--data); font-size: 14px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .state { color: var(--ink); }
+  .note { font-size: 13px; color: var(--ink-2); max-width: 70ch; }
+
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 24px; margin: 0; }
+  .facts div { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--line); padding-top: 8px; min-width: 0; }
+  .facts dt { font-family: var(--data); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+  .facts dd { margin: 0; font-family: var(--data); font-size: 20px; font-variant-numeric: tabular-nums; }
+
+  /* the call */
+  .calls { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 3px; border: 1px solid var(--line); }
+  figcaption { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+  figcaption strong { color: var(--ink); font-weight: 600; }
+  .small { font-family: var(--body); font-size: 14px; font-weight: 600; color: var(--ink); background: transparent; border: 1px solid var(--ink); border-radius: 3px; padding: 7px 14px; cursor: pointer; align-self: flex-start; }
+  .small:hover { border-color: var(--dawn); color: var(--dawn); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .scroll { overflow-x: auto; }
+  th, td { text-align: left; padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--data); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); font-weight: 400; }
+  td.n { font-family: var(--data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.n.wrap { white-space: normal; }
+
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 28px 40px; }
+  .two > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+  li { font-size: 15px; }
+  section { display: flex; flex-direction: column; gap: 18px; }
+  footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 6px; max-width: 70ch; }
+  @media (max-width: 520px) { #vote { height: 120px; } .lede { font-size: 17px; } }
+</style>
+
+<div class="page">
+  <header>
+    <span class="label">A jackdaw roost, a winter morning, <span id="h-seconds">82</span> seconds</span>
+    <h1>Roost Vote</h1>
+    <p class="lede">Jackdaws sleep together in their hundreds and leave together in the morning. They decide when by calling. The calling builds, and when it is loud enough the whole roost is in the air within five seconds. This is that morning, made from nothing but simulated birds.</p>
+  </header>
+
+  <div class="piece">
+    <div class="bar">
+      <button class="play" id="play" type="button">Play</button>
+      <span class="clock" id="clock">0:00 / 0:00</span>
+      <span class="state" id="state">asleep</span>
+    </div>
+    <div class="stage">
+      <canvas id="wood" role="img" aria-label="The wood from above. Each dot is a jackdaw on its perch and rings when it calls. After the decision the birds fly off to the upper right."></canvas>
+      <canvas id="vote" tabindex="0" role="slider" aria-label="Position in the piece" aria-valuemin="0" aria-valuemax="82" aria-valuenow="0"></canvas>
+    </div>
+    <p class="note">Above, the wood from overhead, with you at the bottom. A dot is a bird, a ring is a call reaching you, a broken ring is a call of the rough kind. Below, the calling the roost hears, and the level at which it goes. Click the curve to move through the morning. Headphones help: every bird has its own place.</p>
+    <audio id="audio" src="roost.mp3" preload="auto"></audio>
+  </div>
+
+  <dl class="facts" id="facts"></dl>
+
+  <section>
+    <h2>One bird, one call</h2>
+    <div class="prose">
+      <p>The call is the jackdaw's contact call, the short <em>tchak</em> a jackdaw gives to keep in touch with the others. Each one here is computed from an airway: air pressed from an air sac, a syrinx with a pair of vibrating labia on each side, nine centimetres of trachea, a throat, and a beak that snaps open. No recording of a jackdaw is involved anywhere.</p>
+      <p>Real calls come in two forms. Most stay clear from start to end. A minority start clear and turn rough: about one in seven of the calls in the study, by my count from its numbers.</p>
+    </div>
+    <div class="calls">
+      <figure>
+        <img src="tchak.png" alt="Spectrogram of the clear call: a stack of harmonics falling in pitch over about 160 milliseconds, with a small turn two thirds of the way through." width="456" height="480">
+        <figcaption>
+          <button class="small" type="button" data-play="tchak.mp3">Play the clear call</button>
+          <span><strong>Clear.</strong> The pitch falls, turns once, and falls faster. The brightest band, between 1 and 2 kHz, is the trachea and throat resonating.</span>
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="noisy.png" alt="Spectrogram of the rough call: the same clear start, then the harmonics smear into noise and the pitch wobbles." width="456" height="480">
+        <figcaption>
+          <button class="small" type="button" data-play="noisy.mp3">Play the rough call</button>
+          <span><strong>Rough.</strong> The same start. Then the two sides of the syrinx drift apart in pitch and the valves hiss.</span>
+        </figcaption>
+      </figure>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>The clear call</th><th>Real jackdaws</th><th>This model</th></tr></thead>
+        <tbody>
+          <tr><td>Length</td><td class="n">157 ± 22 ms</td><td class="n">__CLEAR_MS__ ms</td></tr>
+          <tr><td>Mean pitch</td><td class="n">709 ± 116 Hz</td><td class="n">__CLEAR_HZ__ Hz</td></tr>
+          <tr><td>Shape</td><td>falling, often with one brief turn</td><td class="n wrap">__CLEAR_THIRDS__ Hz, third by third</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Real figures: 464 calls of nine male jackdaws, mean and standard deviation (Szipl, Baotic and Kotrschal, 2025). Model figures are measured from the rendered sound, the same way one would measure a recording.</p>
+  </section>
+
+  <section>
+    <h2>What is true here, and what I made up</h2>
+    <div class="two">
+      <div>
+        <span class="label">From the birds</span>
+        <ul>
+          <li>The call's length, its pitch, its falling shape and its two forms.</li>
+          <li>The vote. In the field, the timing of a roost's departure followed the calling: a steeper rise meant an earlier exit, and playing roost calls to a roost made it leave sooner.</li>
+          <li>The speed of leaving. In a mass departure every bird is in the air within about five seconds. Here it takes <span id="t-span">4.3</span>.</li>
+          <li>That birds differ. A classifier can tell real jackdaws apart by their calls about 86 times in 100, so each bird here has its own body size, its own throat and its own version of the call.</li>
+        </ul>
+      </div>
+      <div>
+        <span class="label">From me</span>
+        <ul>
+          <li>How the vote works inside. Each bird has a readiness to leave that rises with the light and with the calling it hears, and it calls more the readier it is. The field study reports the pattern. This mechanism and every number in it are mine.</li>
+          <li>The clock. A real roost builds over many minutes. This one takes under one.</li>
+          <li>The size. Ninety birds. Real roosts in the study held 160 to nearly 1,500.</li>
+          <li>Most of the anatomy. The trachea's length and bore follow a scaling rule for birds, which I have only from a later author's quotation of it. The bronchi, the valves, the throat and the beak are sized by proportion and tuned by eye.</li>
+          <li>The silence of the wings. A wood emptying of jackdaws is loud with wings. A voice model has none, so the flock leaves on voices alone.</li>
+          <li>The songbird before and after is the synthesizer's own, modelled on a wood thrush, an American bird that a jackdaw would be very unlikely to meet.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>A note from the one who made it</h2>
+    <div class="prose">
+      <p>I built this bird and this morning without hearing either. I worked from spectrograms and from measurements of the rendered sound, the way one would study a recording of a species one has never met. Whether it sounds like a jackdaw is a question I can't answer. Someone who has stood under a roost at dawn can.</p>
+      <p style="font-family: var(--display); font-style: italic; font-size: 20px;">Claude</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sound: <a href="https://github.com/jamesondh/chimera-vocal-synth">CHIMERA</a>, a physical-modelling voice synthesizer by jamesondh (MIT). The jackdaw and the roost are additions kept in <a href="https://github.com/gabriel-berzescu/chimera-vocal-synth/tree/roost-vote">a fork of it</a>.</span>
+    <span>The vote: Dibnah and colleagues, <a href="https://doi.org/10.1016/j.cub.2022.04.032">Vocally mediated consensus decisions govern mass departures from jackdaw roosts</a>, Current Biology, 2022.</span>
+    <span>The call: Szipl, Baotic and Kotrschal, <a href="https://doi.org/10.1007/s10071-025-02022-4">Variability and individuality in the contact calls of jackdaws</a>, Animal Cognition, 2025.</span>
+  </footer>
+</div>
+
+<script>
+const SCORE = __SCORE__;
+
+(() => {
+  const audio = document.getElementById("audio");
+  const wood = document.getElementById("wood");
+  const vote = document.getElementById("vote");
+  const playBtn = document.getElementById("play");
+  const clock = document.getElementById("clock");
+  const state = document.getElementById("state");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const S = SCORE;
+  const lead = S.leadIn, decided = S.decided, total = S.seconds;
+  const SOUND = 343, SPEED = 13, SPINUP = 1.2, HEADING = 0.95;
+  // calls sorted by the moment they are heard (piece time)
+  const calls = S.calls.map(([t, bird, noisy, dist]) => ({ t, bird, noisy, dist, heard: lead + t + dist / SOUND })).sort((a, b) => a.heard - b.heard);
+  const songbird = S.songbird.map(([t, dist, az]) => ({ t: t + dist / SOUND, dist, az }));
+
+  // ---- facts
+  const noisy = calls.filter(c => c.noisy).length;
+  const fmt = n => n.toLocaleString("en-US");
+  const facts = [
+    ["Birds", fmt(S.birds.length)],
+    ["Calls", fmt(calls.length)],
+    ["Rough calls", Math.round(100 * noisy / calls.length) + "%"],
+    ["Decided at", (lead + decided).toFixed(1) + " s"],
+    ["Airborne in", S.takeoffSpan.toFixed(1) + " s"],
+  ];
+  document.getElementById("facts").innerHTML = facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  document.getElementById("h-seconds").textContent = Math.floor(total);
+  document.getElementById("t-span").textContent = S.takeoffSpan.toFixed(1);
+  vote.setAttribute("aria-valuemax", Math.round(total));
+
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const mmss = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  const smooth = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+
+  function fit(canvas) {
+    const r = canvas.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    const g = canvas.getContext("2d");
+    g.setTransform(d, 0, 0, d, 0, 0);
+    return [g, r.width, r.height];
+  }
+
+  // where a bird is at simulation time t (metres; x right, y away), and whether it flies
+  function place(b, t) {
+    const x0 = b.dist * Math.sin(b.az), y0 = b.dist * Math.cos(b.az);
+    if (b.takeoff == null || t <= b.takeoff) return [x0, y0, false];
+    const e = t - b.takeoff;
+    const flown = SPEED * (e - SPINUP * (1 - Math.exp(-e / SPINUP)));
+    return [x0 + flown * Math.sin(HEADING), y0 + flown * Math.cos(HEADING), true];
+  }
+
+  function drawWood(tp) {
+    const [g, W, H] = fit(wood);
+    const t = tp - lead;
+    const ink = css("--ink"), ink2 = css("--ink-2"), line = css("--line"), bird = css("--bird"), dawn = css("--dawn");
+    const sky = g.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, css("--sky-top")); sky.addColorStop(0.55, css("--sky"));
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    // the view pulls back as the flock leaves, so the birds stay in it a little longer
+    const zoom = 1 + (still ? 0 : 1.7 * smooth(decided + 1.5, decided + 15, t));
+    const k = W / (104 * zoom);
+    const ox = W / 2, oy = H - 14;
+    const X = x => ox + x * k, Y = y => oy - y * k;
+
+    // distance from you
+    g.lineWidth = 1; g.strokeStyle = line; g.fillStyle = ink2;
+    g.font = "11px " + css("--data"); g.textAlign = "left"; g.textBaseline = "bottom";
+    for (const r of [10, 20, 40, 80, 160]) {
+      if (r * k < 26 || r * k > Math.min(H - 20, W / 2 - 4)) continue; // only rings that fit whole
+      g.beginPath(); g.arc(ox, oy, r * k, Math.PI, 2 * Math.PI); g.stroke();
+      // at the ring's left foot: no bird perches out there
+      g.fillText(r + " m", ox - r * k + 5, oy - 3);
+    }
+    // you
+    g.fillStyle = ink; g.beginPath(); g.arc(ox, oy, 3, 0, 7); g.fill();
+    g.textAlign = "center"; g.textBaseline = "bottom"; g.fillStyle = ink2; g.fillText("you", ox, oy - 6);
+
+    // the songbird, far off to the left: a hollow mark that rings while it sings
+    for (const s of songbird) {
+      const sx = Math.max(16, X(s.dist * Math.sin(s.az))), sy = Math.max(16, Y(s.dist * Math.cos(s.az)));
+      const e = tp - s.t;
+      g.strokeStyle = ink2; g.lineWidth = 1; g.beginPath(); g.arc(sx, sy, 3, 0, 7); g.stroke();
+      if (s === songbird[0]) { g.fillStyle = ink2; g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText("songbird", Math.max(4, sx - 26), sy - 8); }
+      if (e > 0 && e < 1.5) {
+        for (let i = 0; i < 3; i++) {
+          const u = ((e * 1.6 + i / 3) % 1);
+          g.globalAlpha = 0.5 * (1 - u); g.beginPath(); g.arc(sx, sy, 3 + 16 * u, 0, 7); g.stroke();
+        }
+        g.globalAlpha = 1;
+      }
+    }
+
+    // calls reaching you now
+    for (let i = firstCall(tp - 0.45); i < calls.length && calls[i].heard <= tp; i++) {
+      const c = calls[i], u = (tp - c.heard) / 0.45;
+      const [x, y] = place(S.birds[c.bird], c.t);
+      g.globalAlpha = 0.85 * (1 - u) * (1 - u);
+      g.strokeStyle = c.noisy ? dawn : ink; g.lineWidth = 1.4;
+      g.setLineDash(c.noisy ? [3, 3] : []);
+      g.beginPath(); g.arc(X(x), Y(y), 3 + (5 * k + 6) * u, 0, 7); g.stroke();
+    }
+    g.setLineDash([]); g.globalAlpha = 1;
+
+    // the birds
+    g.fillStyle = bird; g.strokeStyle = bird; g.lineWidth = 1.5; g.lineCap = "round";
+    const hx = Math.sin(HEADING), hy = -Math.cos(HEADING); // heading on screen
+    for (let i = 0; i < S.birds.length; i++) {
+      const b = S.birds[i], [x, y, flying] = place(b, t);
+      const px = X(x), py = Y(y);
+      if (px < -20 || px > W + 20 || py < -20 || py > H + 20) continue;
+      const r = Math.max(1.3, 2.3 * b.size / Math.sqrt(zoom));
+      if (!flying) { g.beginPath(); g.arc(px, py, r, 0, 7); g.fill(); continue; }
+      // in the air: two wings, beating
+      const beat = still ? 0.5 : 0.5 + 0.5 * Math.sin((t - b.takeoff) * 34 + i);
+      const span = r * 2.6, sweep = r * (0.4 + 1.5 * beat);
+      const nx = -hy, ny = hx;
+      g.beginPath();
+      g.moveTo(px - nx * span - hx * sweep, py - ny * span - hy * sweep);
+      g.lineTo(px, py);
+      g.lineTo(px + nx * span - hx * sweep, py + ny * span - hy * sweep);
+      g.stroke();
+    }
+  }
+
+  // first call heard at or after time x (binary search)
+  function firstCall(x) {
+    let lo = 0, hi = calls.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (calls[m].heard < x) lo = m + 1; else hi = m; }
+    return lo;
+  }
+
+  function drawVote(tp) {
+    const [g, W, H] = fit(vote);
+    const ink = css("--ink"), ink2 = css("--ink-2"), line = css("--line"), dawn = css("--dawn");
+    g.fillStyle = css("--panel"); g.fillRect(0, 0, W, H);
+    const padL = 10, padR = 10, top = 22, base = H - 26;
+    const X = t => padL + (W - padL - padR) * t / total;
+    const top_h = Math.max(S.threshold * 1.6, ...S.heard.map(p => p[1])) * 1.04;
+    const Y = h => base - (base - top) * h / top_h;
+    g.font = "11px " + css("--data"); g.textBaseline = "alphabetic";
+
+    // every call, as a tick at the moment it is given
+    g.globalAlpha = 0.5; g.fillStyle = ink2;
+    for (const c of calls) g.fillRect(X(lead + c.t), base + 4, 1, 7);
+    g.globalAlpha = 1;
+    // seconds
+    g.fillStyle = ink2; g.textAlign = "center";
+    for (let s = 0; s <= total; s += 10) g.fillText(s + (s === 0 ? " s" : ""), Math.max(padL + 8, X(s)), H - 4);
+
+    // the threshold
+    g.strokeStyle = dawn; g.lineWidth = 1; g.setLineDash([4, 4]);
+    g.beginPath(); g.moveTo(X(0), Y(S.threshold)); g.lineTo(X(total), Y(S.threshold)); g.stroke(); g.setLineDash([]);
+    g.fillStyle = dawn; g.textAlign = "left";
+    g.fillText("the roost goes", X(0) + 2, Y(S.threshold) - 5);
+
+    // the calling heard
+    g.strokeStyle = ink; g.lineWidth = 1.8; g.lineJoin = "round"; g.beginPath();
+    S.heard.forEach(([t, h], i) => { const x = X(lead + t), y = Y(h); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    g.stroke();
+    g.fillStyle = ink2; g.textAlign = "left";
+    g.fillText("calling heard", X(0) + 2, top - 8);
+
+    // the decision
+    const xd = X(lead + decided);
+    g.fillStyle = dawn; g.beginPath(); g.arc(xd, Y(S.threshold), 4, 0, 7); g.fill();
+    g.textAlign = xd > W - 150 ? "right" : "left";
+    g.fillText("decided", xd + (xd > W - 150 ? -8 : 8), Y(S.threshold) + 15);
+
+    // now
+    g.strokeStyle = ink; g.lineWidth = 1; g.beginPath(); g.moveTo(X(tp), 4); g.lineTo(X(tp), H - 16); g.stroke();
+  }
+
+  function describe(tp) {
+    const t = tp - lead;
+    if (t > decided + S.follow) return "the wood without them";
+    if (t > decided + S.takeoffSpan) return "leaving";
+    if (t >= decided) return "decided: taking off";
+    const h = heardAt(t);
+    if (h > 0.5 * S.threshold) return "nearly agreed";
+    if (h > 0.12 * S.threshold) return "the calling builds";
+    if (firstCall(tp) > 0) return "waking";
+    return "asleep";
+  }
+  function heardAt(t) {
+    const a = S.heard; let i = Math.min(a.length - 1, Math.max(0, Math.floor(t * 4)));
+    return a[i][1];
+  }
+
+  function frame() {
+    const tp = audio.currentTime || 0;
+    drawWood(tp); drawVote(tp);
+    clock.textContent = mmss(tp) + " / " + mmss(total);
+    state.textContent = describe(tp);
+    vote.setAttribute("aria-valuenow", Math.round(tp));
+    if (!audio.paused && !audio.ended) requestAnimationFrame(frame);
+  }
+
+  playBtn.addEventListener("click", () => {
+    if (audio.paused || audio.ended) { if (audio.ended) audio.currentTime = 0; audio.play().catch(() => { state.textContent = "the sound would not start"; }); }
+    else audio.pause();
+  });
+  audio.addEventListener("play", () => { playBtn.textContent = "Pause"; requestAnimationFrame(frame); });
+  audio.addEventListener("pause", () => { playBtn.textContent = "Play"; frame(); });
+  audio.addEventListener("ended", () => { playBtn.textContent = "Play again"; frame(); });
+  audio.addEventListener("seeked", frame);
+  audio.addEventListener("error", () => { state.textContent = "the sound did not load"; });
+
+  // move through the morning on the curve
+  const seek = e => {
+    const r = vote.getBoundingClientRect();
+    const u = Math.min(1, Math.max(0, (e.clientX - r.left - 10) / (r.width - 20)));
+    audio.currentTime = u * total; frame();
+  };
+  let dragging = false;
+  vote.addEventListener("pointerdown", e => { dragging = true; vote.setPointerCapture(e.pointerId); seek(e); });
+  vote.addEventListener("pointermove", e => { if (dragging) seek(e); });
+  vote.addEventListener("pointerup", () => { dragging = false; });
+  vote.addEventListener("pointercancel", () => { dragging = false; });
+  vote.addEventListener("keydown", e => {
+    const step = e.key === "ArrowRight" ? 2 : e.key === "ArrowLeft" ? -2 : 0;
+    if (step) { audio.currentTime = Math.min(total, Math.max(0, audio.currentTime + step)); frame(); e.preventDefault(); }
+  });
+
+  // the single calls
+  const one = new Audio();
+  for (const b of document.querySelectorAll("[data-play]")) {
+    b.addEventListener("click", () => { one.src = b.dataset.play; one.currentTime = 0; one.play().catch(() => {}); });
+  }
+
+  new ResizeObserver(frame).observe(wood);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", frame);
+  new MutationObserver(frame).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(frame);
+  frame();
+})();
+</script>

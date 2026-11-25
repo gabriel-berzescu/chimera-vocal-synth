@@ -198,7 +198,10 @@ and the commit history actually cite, and says where they cite nothing.
   against them. The trachea's length and bore follow the allometry for birds of Hinds & Calder
   (1971), "Tracheal dead space in the respiration of birds", Evolution 25(2):429–440, as quoted
   by Wedel (2007, arXiv:1302.3267): the paper itself was not read. The rest of the bird is
-  unmeasured (the file says which parts).
+  unmeasured (the file says which parts). `chimera render roost` enacts Dibnah et al. (2022),
+  "Vocally mediated consensus decisions govern mass departures from jackdaw roosts", Current
+  Biology 32, doi 10.1016/j.cub.2022.04.032: the relation is theirs, the mechanism and every
+  constant in `chimera-cli/src/roost.rs` are invented.
 - **Voice-source defaults**, from the tuning log ([hill-climb/log.md](hill-climb/log.md)): the
   posterior glottal chink that stays open through closure follows Södersten & Lindestad (1990)
   (experiment 3); the 6 Hz default vibrato rate follows Prame (1994) (experiment 9). The log

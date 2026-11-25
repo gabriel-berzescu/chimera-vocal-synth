@@ -56,7 +56,7 @@ const RASP_GAIN: f64 = 1.9e-3;
 const RASP_CLEAR: f64 = 0.2;
 
 /// The tchak's mean fundamental (Hz) and length (s): Szipl et al. 2025.
-const TCHAK_HZ: f64 = 709.0;
+pub const TCHAK_HZ: f64 = 709.0;
 const TCHAK_SECONDS: f64 = 0.157;
 
 // parameter indices (order of `def().params`)
@@ -211,47 +211,90 @@ impl CreatureSim for Jackdaw {
 
 // --- calls --------------------------------------------------------------------------------------
 
-/// One tchak starting at `t0`, appended to `keys`; `pitch` scales it (1: the measured mean). The
-/// fundamental falls 800 → 715 Hz over the first 85 ms, turns, and falls faster to 580 Hz: a
-/// time-weighted mean of 709 Hz. The beak snaps open and closes again. `noisy`: the second form,
-/// which starts the same and then roughens (the pitch wobbles, the two sides of the syrinx drift
-/// apart and the valves hiss). Both forms set the rasp at their start: a clear call after a
-/// noisy one must not inherit its hiss.
-fn tchak(keys: &mut Vec<CallKey>, t0: f64, pitch: f64, noisy: bool) {
-    let k = CallKey::new;
-    let f = pitch; // the frequencies below are written for the 709 Hz mean
-    keys.push(k(t0, &[("gate", 0.0), ("pitch", 800.0 * f), ("gape", 0.2), ("rasp", RASP_CLEAR), ("interval", 0.0), ("voices", 0.5), ("drive", 0.95), ("tension", 0.3), ("pressure", 1.9)]).curve(Curve::Step));
-    keys.push(k(t0 + 0.004, &[("gate", 1.0)]));
-    keys.push(k(t0 + 0.045, &[("gape", 0.95)]));
-    if noisy {
-        keys.push(k(t0 + 0.055, &[("pitch", 745.0 * f), ("rasp", RASP_CLEAR), ("interval", 0.0)]).curve(Curve::Exp));
-        keys.push(k(t0 + 0.085, &[("pitch", 715.0 * f), ("rasp", 1.0), ("interval", 1.7)]).curve(Curve::Exp));
-        keys.push(k(t0 + 0.105, &[("pitch", 790.0 * f)]).curve(Curve::Exp));
-        keys.push(k(t0 + 0.115, &[("gape", 0.7)]));
-        keys.push(k(t0 + 0.125, &[("pitch", 610.0 * f)]).curve(Curve::Exp));
-        keys.push(k(t0 + 0.14, &[("pitch", 700.0 * f)]).curve(Curve::Exp));
-        keys.push(k(t0 + 0.15, &[("gate", 1.0), ("pitch", 540.0 * f)]).curve(Curve::Exp));
-        keys.push(k(t0 + TCHAK_SECONDS, &[("gate", 0.0), ("gape", 0.15)]));
-    } else {
-        keys.push(k(t0 + 0.085, &[("pitch", 715.0 * f)]).curve(Curve::Exp));
-        keys.push(k(t0 + 0.1, &[("pitch", 690.0 * f)]).curve(Curve::Exp));
-        keys.push(k(t0 + 0.115, &[("gape", 0.6)]));
-        keys.push(k(t0 + 0.146, &[("gate", 1.0), ("pitch", 580.0 * f)]).curve(Curve::Exp));
-        // the breath is let go 5 ms before the call ends: the gate and the tract ring on that long
-        keys.push(k(t0 + TCHAK_SECONDS - 0.005, &[("gate", 0.0), ("gape", 0.15)]));
+/// The shape of one tchak. Real birds are told apart by theirs (Szipl et al. 2025: mean pitch,
+/// when the pitch is lowest, how long the call is), so a flock is made by giving each bird its own.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Tchak {
+    /// pitch scale (1: a mean of 709 Hz, with the other fields at their defaults)
+    pub pitch: f64,
+    /// length scale (1: 157 ms)
+    pub stretch: f64,
+    /// the fundamental where the call starts, where it turns and where it ends, over 709 Hz
+    pub start: f64,
+    pub turn: f64,
+    pub end: f64,
+    /// when the pitch turns, as a fraction of the call (kept within 0.35..0.62)
+    pub turn_at: f64,
+    /// the second form: it starts the same and then roughens (the pitch wobbles, the two sides of
+    /// the syrinx drift apart and the valves hiss)
+    pub noisy: bool,
+}
+
+impl Default for Tchak {
+    /// The fundamental falls 800 → 715 Hz over the first 85 ms, turns, and falls faster to 580 Hz:
+    /// a time-weighted mean of 709 Hz.
+    fn default() -> Self {
+        Tchak { pitch: 1.0, stretch: 1.0, start: 800.0 / 709.0, turn: 715.0 / 709.0, end: 580.0 / 709.0, turn_at: 0.085 / 0.152, noisy: false }
     }
+}
+
+/// The keys of one tchak starting at `t0`, appended to `keys`. The beak snaps open and closes
+/// again. Both forms set the rasp at their start: a clear call after a noisy one must not inherit
+/// its hiss. With the default shape these are the bestiary's own calls, to within a millisecond.
+pub fn tchak_keys(keys: &mut Vec<CallKey>, t0: f64, c: &Tchak) {
+    let k = CallKey::new;
+    let hz = TCHAK_HZ * c.pitch;
+    let from = keys.len();
+    keys.push(k(t0, &[("gate", 0.0), ("pitch", c.start * hz), ("gape", 0.2), ("rasp", RASP_CLEAR), ("interval", 0.0), ("voices", 0.5), ("drive", 0.95), ("tension", 0.3), ("pressure", 1.9)]).curve(Curve::Step));
+    keys.push(k(t0 + 0.004, &[("gate", 1.0)]));
+    if c.noisy {
+        let d = TCHAK_SECONDS * c.stretch;
+        let at = |u: f64| t0 + u * d;
+        keys.push(k(at(0.287), &[("gape", 0.95)]));
+        keys.push(k(at(0.35), &[("pitch", 745.0 / 709.0 * (c.start / (800.0 / 709.0)) * hz), ("rasp", RASP_CLEAR), ("interval", 0.0)]).curve(Curve::Exp));
+        keys.push(k(at(0.541), &[("pitch", c.turn * hz), ("rasp", 1.0), ("interval", 1.7)]).curve(Curve::Exp));
+        keys.push(k(at(0.669), &[("pitch", 790.0 / 709.0 * hz)]).curve(Curve::Exp));
+        keys.push(k(at(0.732), &[("gape", 0.7)]));
+        keys.push(k(at(0.796), &[("pitch", 610.0 / 709.0 * hz)]).curve(Curve::Exp));
+        keys.push(k(at(0.892), &[("pitch", 700.0 / 709.0 * hz)]).curve(Curve::Exp));
+        keys.push(k(at(0.955), &[("gate", 1.0), ("pitch", 540.0 / 709.0 * hz)]).curve(Curve::Exp));
+        keys.push(k(at(1.0), &[("gate", 0.0), ("gape", 0.15)]));
+    } else {
+        // the breath is let go 5 ms before the call ends: the gate and the tract ring on that long
+        let d = (TCHAK_SECONDS - 0.005) * c.stretch;
+        let at = |u: f64| t0 + u * d;
+        let turn_at = js_min(0.62, js_max(0.35, c.turn_at));
+        keys.push(k(at(0.296), &[("gape", 0.95)]));
+        keys.push(k(at(turn_at), &[("pitch", c.turn * hz)]).curve(Curve::Exp));
+        keys.push(k(at(turn_at + 0.0987), &[("pitch", (c.turn - 25.0 / 709.0) * hz)]).curve(Curve::Exp));
+        keys.push(k(at(0.7566), &[("gape", 0.6)]));
+        keys.push(k(at(0.9605), &[("gate", 1.0), ("pitch", c.end * hz)]).curve(Curve::Exp));
+        keys.push(k(at(1.0), &[("gate", 0.0), ("gape", 0.15)]));
+    }
+    // in time order, whatever the shape moved (the last key ends the call)
+    keys[from..].sort_by(|a, b| a.t.total_cmp(&b.t));
 }
 
 pub fn def() -> CreatureDef {
     let mut clear = Vec::new();
-    tchak(&mut clear, 0.0, 1.0, false);
+    tchak_keys(&mut clear, 0.0, &Tchak::default());
     let mut noisy = Vec::new();
-    tchak(&mut noisy, 0.0, 1.0, true);
+    tchak_keys(&mut noisy, 0.0, &Tchak { noisy: true, ..Default::default() });
     // one bird calling five times, as they do: no two alike, the fourth gone noisy
     let mut chatter = Vec::new();
     for (t0, pitch, rough) in [(0.0, 1.0, false), (0.31, 1.05, false), (0.57, 0.96, false), (0.93, 1.08, true), (1.21, 0.93, false)] {
-        tchak(&mut chatter, t0, pitch, rough);
+        tchak_keys(&mut chatter, t0, &Tchak { pitch, noisy: rough, ..Default::default() });
     }
+    def_with_calls(vec![
+        CallDef::new("tchak", "Tchak", "The contact call: 157 ms, falling through 709 Hz", Some(TCHAK_HZ), clear),
+        CallDef::new("noisy", "Noisy tchak", "The other form: starts clear, ends rough", Some(TCHAK_HZ), noisy),
+        CallDef::new("chatter", "Chatter", "One bird, five calls, no two alike", Some(TCHAK_HZ), chatter),
+    ])
+}
+
+/// The jackdaw with another set of calls: one bird of a flock, with its own versions of the tchak
+/// ([`tchak_keys`]). [`def`] is this with the three calls the bestiary shows.
+pub fn def_with_calls(calls: Vec<CallDef>) -> CreatureDef {
     CreatureDef {
         id: "jackdaw",
         name: "Jackdaw",
@@ -273,11 +316,7 @@ pub fn def() -> CreatureDef {
             ParamDef::new("size", "Body size", 0.88, 1.12, 1.0).smooth(0.05).digits(2),
             ParamDef::new("gape", "Beak gape", 0.0, 1.0, 0.6).smooth(0.008),
         ],
-        calls: vec![
-            CallDef::new("tchak", "Tchak", "The contact call: 157 ms, falling through 709 Hz", Some(TCHAK_HZ), clear),
-            CallDef::new("noisy", "Noisy tchak", "The other form: starts clear, ends rough", Some(TCHAK_HZ), noisy),
-            CallDef::new("chatter", "Chatter", "One bird, five calls, no two alike", Some(TCHAK_HZ), chatter),
-        ],
+        calls,
         events: vec![],
         create,
     }

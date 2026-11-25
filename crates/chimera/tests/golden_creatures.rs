@@ -9,6 +9,10 @@ use chimera::sources::valves::{Bubble, ClickTrain, LipReed, Whistle};
 use common::*;
 use serde_json::Value;
 
+/// The creatures the TypeScript engine had: the fixtures know no others. A creature added since
+/// (the jackdaw) is held to its own behavioural tests instead (`tests/jackdaw.rs`).
+const FROM_TYPESCRIPT: [&str; 4] = ["songbird", "seal", "alligator", "elephant"];
+
 fn values(def: &chimera::creatures::CreatureDef, v: &Value) -> Vec<(usize, f64)> {
     v.as_object().unwrap().iter().map(|(k, x)| (def.param_index(k).unwrap_or_else(|| panic!("param {k}")), num(x))).collect()
 }
@@ -192,13 +196,14 @@ fn preview_telemetry_serialises_like_typescript() {
         assert_key_order(name, &text, &params);
         seen += 1;
     }
-    assert_eq!(seen, CREATURES.len());
+    assert_eq!(seen, FROM_TYPESCRIPT.len());
 }
 
 #[test]
 fn defs_serialise_like_typescript() {
     let u = load("creature-units");
-    let text = serde_json::to_string(&*CREATURES).unwrap();
+    let defs: Vec<&chimera::creatures::CreatureDef> = CREATURES.iter().filter(|c| FROM_TYPESCRIPT.contains(&c.id)).collect();
+    let text = serde_json::to_string(&defs).unwrap();
     let got: Value = serde_json::from_str(&text).unwrap();
     assert!(same_json(&got, &u["defs"]), "defs differ\n{got}\n{}", u["defs"]);
     assert_key_order("def", &text, &["id", "name", "latin", "group", "blurb", "role", "oversample"]);

@@ -31,6 +31,7 @@ function smooth(pts: P[], per: number, closed: boolean): P[] {
 interface TubeGeom {
   tube: string;
   label?: string;
+  labelAt?: P;
   inView: boolean;
   pts: P[];
   cum: number[];
@@ -55,7 +56,7 @@ function geometry(def: CreatureDef): Geom {
       const pts = smooth(t.path, 6, false);
       const cum = [0];
       for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-      return { tube: t.tube, label: t.label, inView: t.inView !== false, pts, cum, length: cum[cum.length - 1] };
+      return { tube: t.tube, label: t.label, labelAt: t.labelAt, inView: t.inView !== false, pts, cum, length: cum[cum.length - 1] };
     }),
   };
   geoms.set(def.id, g);
@@ -144,8 +145,9 @@ export function CreatureView() {
         seg(ctx, x0, y0, x1, y1, live ? heat(lvl) : V.blueDim, 1, { alpha: live ? 0.35 + 0.65 * lvl : 0.6 });
       }
       if (tg.label && tg.inView) {
-        const m = S(pointAt(tg, tg.length * 0.5));
-        labels.push({ text: tg.label.toUpperCase(), x: m[0] + 12, y: m[1] - 12, color: TEXT.secondary });
+        // beside the tube's middle, or where the drawing says (a label that would cross the outline)
+        const m = S(tg.labelAt ?? pointAt(tg, tg.length * 0.5)), d = tg.labelAt ? 0 : 12;
+        labels.push({ text: tg.label.toUpperCase(), x: m[0] + d, y: m[1] - d, color: TEXT.secondary });
       }
     }
 

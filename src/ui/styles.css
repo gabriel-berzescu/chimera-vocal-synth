@@ -2601,7 +2601,8 @@ input[type="range"]::-moz-range-thumb {
   inset: 0;
   padding: 4px 14px 12px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* one row for the five creatures: a sixth would wrap, and halve the drawings */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2653,9 +2654,10 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1.25;
   text-transform: uppercase;
   color: var(--text-dim);
-  /* at the 11 px floor a binomial doesn't fit a card on one line: it wraps at the space */
+  /* at the 11 px floor a binomial doesn't fit a card on one line: it wraps at the space (and
+     "Hylocichla mustelina & kin" takes three lines on a card a fifth of a 1280 px window's column) */
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   max-width: 100%;
@@ -2696,11 +2698,13 @@ input[type="range"]::-moz-range-thumb {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "act" "gallery" "cparams" "keys" "wf" "airway";
   }
+  /* three rows of two, each as tall as the two rows of four creatures were (.specimens stops at 300px) */
   .s-gallery .specimens {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
   }
   .s-gallery .screen-body {
-    min-height: 300px;
+    min-height: 450px;
   }
 }
 

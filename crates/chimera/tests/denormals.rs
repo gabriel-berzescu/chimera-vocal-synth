@@ -237,3 +237,24 @@ fn the_alligator_dies_to_zero_after_its_hiss() {
 fn the_songbird_dies_to_zero_with_one_side_muted() {
     assert_creature_dies_to_zero_when("songbird", None, &[("voices", 0.0)], 30);
 }
+
+#[cfg(target_arch = "x86_64")]
+#[test]
+fn the_jackdaw_dies_to_zero() {
+    assert_creature_dies_to_zero("jackdaw");
+}
+
+/// Its noisy call takes the right side of the syrinx away from the left and lets it go (a dial
+/// that rests at zero, as the elephant's `mode` does), and it has the songbird's syrinx, a side
+/// of which can be muted.
+#[cfg(target_arch = "x86_64")]
+#[test]
+fn the_jackdaw_dies_to_zero_after_its_noisy_tchak() {
+    assert_creature_dies_to_zero_when("jackdaw", Some("noisy"), &[], 40);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[test]
+fn the_jackdaw_dies_to_zero_with_one_side_muted() {
+    assert_creature_dies_to_zero_when("jackdaw", None, &[("voices", 0.0)], 30);
+}

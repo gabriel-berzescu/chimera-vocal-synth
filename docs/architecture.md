@@ -9,8 +9,8 @@ ambitious. Sophisticated throat, lips, tongue modeling. Different animals: human
 etc. Tonal and percussive (beatboxing). Beautiful visuals/diagrams, dynamic animations based on
 params."
 
-**Not built (yet):** the design's wider bestiary (only songbird, seal, alligator and elephant
-exist), the two-mass vocal folds, an IPA chart mode, the app-side EQ/reverb/limiter chain and
+**Not built (yet):** the design's wider bestiary (only songbird, seal, alligator, elephant and
+jackdaw exist), the two-mass vocal folds, an IPA chart mode, the app-side EQ/reverb/limiter chain and
 in-app WAV export (the CLI renders WAVs; the app has a close-mic chain in WebAudio). Treat the
 code as the truth where this file disagrees.
 
@@ -191,6 +191,14 @@ and the commit history actually cite, and says where they cite nothing.
   VocalTractLab code or data is used.
 - **Songbird syrinx** (`sources/syrinx.rs`): the labial oscillator is what the code calls the
   Gardner–Mindlin normal form. The repo doesn't record which paper it came from.
+- **Jackdaw** (`creatures/jackdaw.rs`): the contact call's length (157 ± 22 ms), mean fundamental
+  (709 ± 116 Hz), falling shape and two forms are from Szipl, Baotic & Kotrschal (2025),
+  "Variability and individuality in the contact calls of jackdaws (*Corvus monedula*)", Animal
+  Cognition 29:2, doi 10.1007/s10071-025-02022-4, and `tests/jackdaw.rs` measures the rendered call
+  against them. The trachea's length and bore follow the allometry for birds of Hinds & Calder
+  (1971), "Tracheal dead space in the respiration of birds", Evolution 25(2):429–440, as quoted
+  by Wedel (2007, arXiv:1302.3267): the paper itself was not read. The rest of the bird is
+  unmeasured (the file says which parts).
 - **Voice-source defaults**, from the tuning log ([hill-climb/log.md](hill-climb/log.md)): the
   posterior glottal chink that stays open through closure follows Södersten & Lindestad (1990)
   (experiment 3); the 6 Hz default vibrato rate follows Prame (1994) (experiment 9). The log

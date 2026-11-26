@@ -107,6 +107,7 @@ impl CreatureSim for Elephant {
     }
     fn flush_tiny(&mut self) {
         self.a.glottis_src.flush_tiny();
+        self.lips.flush_tiny();
     }
     fn source_state(&self, out: &mut Vec<(&'static str, f64)>) {
         out.clear();

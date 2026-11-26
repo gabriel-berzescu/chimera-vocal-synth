@@ -5,6 +5,7 @@
 //!  - ClickTrain: impulsive sources (sperm-whale phonic lips, cicada tymbal ribs)
 //!  - Bubble: cavitation bubble (Rayleigh–Plesset) for the snapping shrimp
 
+use crate::airway::network::tiny;
 use crate::math::{PI, cos, exp, js_max, js_min, pow, sin};
 
 /// Outward-striking lip valve: m·h'' + r·h' + k·(h − h0) = S·(p_up − p_down). Opening area = w·max(h, 0).
@@ -29,6 +30,15 @@ pub struct LipReed {
 impl LipReed {
     pub fn new(fs: f64) -> Self {
         LipReed { h: 0.0, v: 0.0, f: 400.0, zeta: 0.12, h0: -0.01, width: 1.2, surface_per_mass: 0.08, dt: 1.0 / fs, opening: 0.0 }
+    }
+
+    /// Zero the lips' velocity once it has decayed to nothing (control rate). Lips at their rest
+    /// gap with no pressure across them lose a fixed fraction of their velocity each sample and
+    /// never quite stop: it ends a denormal, computed with at every sample from then on. Lips
+    /// that still have anywhere to go are not touched: the least displacement the spring can
+    /// see drives the velocity many orders of magnitude above this.
+    pub fn flush_tiny(&mut self) {
+        tiny(&mut self.v);
     }
 
     /// Advance one sample with the pressure difference across the lips; returns the opening area (cm²).

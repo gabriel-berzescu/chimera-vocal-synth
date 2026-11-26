@@ -144,16 +144,6 @@ fn assert_creature_dies_to_zero(id: &str) {
 /// breath is let go, watched for this many seconds.
 #[cfg(target_arch = "x86_64")]
 fn assert_creature_dies_to_zero_when(id: &str, call: Option<&str>, let_go: &[(&str, f64)], seconds: usize) {
-    use core::arch::asm;
-    const DENORMAL_OPERAND: u32 = 0x0002;
-    fn mxcsr() -> u32 {
-        let mut v = 0u32;
-        unsafe { asm!("stmxcsr [{}]", in(reg) &mut v, options(nostack)) };
-        v
-    }
-    fn set_mxcsr(v: u32) {
-        unsafe { asm!("ldmxcsr [{}]", in(reg) &v, options(nostack, readonly)) };
-    }
     let def = chimera::creatures::creature_by_id(id).expect("a creature");
     let mut e = Engine::new(FS);
     e.set_creature(Some(def), &[]);
@@ -168,6 +158,33 @@ fn assert_creature_dies_to_zero_when(id: &str, call: Option<&str>, let_go: &[(&s
     for (key, x) in let_go {
         e.set_creature_params(&[(def.param_index(key).unwrap_or_else(|| panic!("{id} has no dial {key}")), *x)]);
     }
+    watch_for_denormals(&mut e, &format!("{id} ({}, {let_go:?}), after letting go", call.unwrap_or("first call")), seconds);
+}
+
+/// A creature that is never given breath: chosen, these dials set, and left for this many seconds.
+#[cfg(target_arch = "x86_64")]
+fn assert_creature_rests_at_zero(id: &str, dials: &[(&str, f64)], seconds: usize) {
+    let def = chimera::creatures::creature_by_id(id).expect("a creature");
+    let initial: Vec<(usize, f64)> = dials.iter().map(|(key, x)| (def.param_index(key).unwrap_or_else(|| panic!("{id} has no dial {key}")), *x)).collect();
+    let mut e = Engine::new(FS);
+    e.set_creature(Some(def), &initial);
+    watch_for_denormals(&mut e, &format!("{id} ({dials:?}), no breath"), seconds);
+}
+
+/// Render for this many seconds and fail at the first second in which the processor was handed a
+/// denormal to compute with.
+#[cfg(target_arch = "x86_64")]
+fn watch_for_denormals(e: &mut Engine, what: &str, seconds: usize) {
+    use core::arch::asm;
+    const DENORMAL_OPERAND: u32 = 0x0002;
+    fn mxcsr() -> u32 {
+        let mut v = 0u32;
+        unsafe { asm!("stmxcsr [{}]", in(reg) &mut v, options(nostack)) };
+        v
+    }
+    fn set_mxcsr(v: u32) {
+        unsafe { asm!("ldmxcsr [{}]", in(reg) &v, options(nostack, readonly)) };
+    }
     let mut buf = [0.0f32; 128];
     let per_second = (FS / 128.0) as usize;
     for second in 1..=seconds {
@@ -177,7 +194,7 @@ fn assert_creature_dies_to_zero_when(id: &str, call: Option<&str>, let_go: &[(&s
             e.render(&mut buf);
             dirty += (mxcsr() & DENORMAL_OPERAND != 0) as usize;
         }
-        assert_eq!(dirty, 0, "{id} ({}, {let_go:?}), {second} s after letting go: {dirty} of {per_second} blocks computed with denormals", call.unwrap_or("first call"));
+        assert_eq!(dirty, 0, "{what}, second {second}: {dirty} of {per_second} blocks computed with denormals");
     }
 }
 
@@ -247,4 +264,13 @@ fn a_dial_sent_just_above_zero_still_arrives() {
     v.render(&mut buf);
     let got = v.values()[mode];
     assert!((got - 1e-29).abs() < 1e-31, "mode sent to 1e-29 is at {got:e} a second later");
+}
+
+/// The elephant's trunk valve is a mass on a spring. Set to buzz (`mode` at 1) with no breath
+/// behind it, it springs to its rest gap and its velocity then decays for ever: a denormal,
+/// computed with at every sample. The elephant flushed its glottis and not its lips.
+#[cfg(target_arch = "x86_64")]
+#[test]
+fn the_elephants_trunk_valve_rests_at_zero() {
+    assert_creature_rests_at_zero("elephant", &[("mode", 1.0), ("lipPitch", 400.0)], 10);
 }
